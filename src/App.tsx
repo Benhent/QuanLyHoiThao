@@ -18,7 +18,6 @@ function App() {
         </Route>
 
 
-
         {/* private route */}
         <Route element={<RootLayout />}>
 

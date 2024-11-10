@@ -1,20 +1,16 @@
-import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { Outlet, Navigate } from "react-router-dom"
+import { useAuth } from '../Context/AuthProviderContext'
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, loading } = useAuth()
-  const navigate = useNavigate()
+export default function AuthLayout() {
+  const { isAuthenticated } = useAuth()
 
-  useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      navigate('/sign-in')
-    }
-  }, [isAuthenticated, loading, navigate])
-
-  if (loading) {
-    return <div>Loading...</div>
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />
   }
 
-  return isAuthenticated ? <>{children}</> : null
+  return (
+    <section className="flex flex-1 justify-center items-center flex-col py-10">
+      <Outlet />
+    </section>
+  )
 }
