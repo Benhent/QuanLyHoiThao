@@ -5,6 +5,7 @@ import AuthLayout from './_auth/AuthLayout'
 import SignInForm from './_auth/form/SignInForm'
 import SignUpForm from './_auth/form/SignUpForm'
 import RootLayout from './_root/RootLayout'
+import Home from './_root/Route/Home'
 
 function App() {
 
@@ -20,7 +21,7 @@ function App() {
 
         {/* private route */}
         <Route element={<RootLayout />}>
-
+          <Route path="/home" element={<Home />} />
         </Route>
       </Routes>
     </main>

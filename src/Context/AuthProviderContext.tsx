@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('auth_token', newToken)
     setToken(newToken)
     setIsAuthenticated(true)
-    navigate('/dashboard') // Redirect to dashboard after login
+    navigate('/home') // Redirect to home after login
   }
 
   // Handle logout
