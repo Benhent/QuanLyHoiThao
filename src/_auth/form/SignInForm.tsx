@@ -39,7 +39,7 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-background">
       <Card className="w-[350px]">
         <CardHeader>
-          <CardTitle>Login</CardTitle>
+          <CardTitle className='text-3xl font-bold'>Login</CardTitle>
           <CardDescription>Enter your credentials to access your account</CardDescription>
         </CardHeader>
         <CardContent>
@@ -71,7 +71,7 @@ export default function LoginPage() {
         <CardFooter className="flex justify-center">
           <p className="text-sm text-muted-foreground">
             Don't have an account?{' '}
-            <Link to="/register" className="text-primary hover:underline">
+            <Link to="/sign-up" className="text-primary hover:underline">
               Register
             </Link>
           </p>

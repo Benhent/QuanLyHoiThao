@@ -23,7 +23,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('auth_token', newToken)
     setToken(newToken)
     setIsAuthenticated(true)
-    navigate('/home') // Redirect to home after login
   }
 
   // Handle logout
@@ -37,10 +36,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Check token on mount
   useEffect(() => {
     const storedToken = localStorage.getItem('auth_token')
-    if (!storedToken) {
+    
+    // Only redirect to sign-in if no token and not on sign-up page
+    if (!storedToken && location.pathname !== '/sign-up') {
       navigate('/sign-in')
     }
-  }, [navigate])
+  }, [navigate, location.pathname])
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, token, login, logout }}>
