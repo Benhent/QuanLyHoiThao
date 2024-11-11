@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../Context/AuthProviderContext'
 import { useState } from "react"
-import { Home, User, Settings, LogOut, Menu } from "lucide-react"
+import { Home, User, BookA, LogOut, Menu } from "lucide-react"
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   isDesktop?: boolean
@@ -19,7 +19,7 @@ export function AppSideBar({ className, isDesktop = false }: SidebarProps) {
   const routes = [
     { icon: Home, label: 'Home', path: '/' },
     { icon: User, label: 'Author', path: '/author' },
-    { icon: Settings, label: 'Work', path: '/work' },
+    { icon: BookA, label: 'Work', path: '/work' },
   ]
 
   const SidebarContent = (
