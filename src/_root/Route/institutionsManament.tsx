@@ -48,27 +48,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-
-export type Author = {
-  id: string
-  FirstName: string
-  LastName: string
-  Email: string
-  Address: string
-  InstitutionId: number
-  institutionName: string
-  bio: string
-  dateOfbirth: string
-  articles: Array<{ title: string, id: string }>
-  awards: Array<{ name: string, id: string }>
-}
+import { useAuth } from '../../Context/AuthProviderContext' // Update this import path
 
 export type Institution = {
   id: number
@@ -76,109 +56,169 @@ export type Institution = {
   country: string
 }
 
-export default function AuthorManagement() {
+export default function InstitutionManagement() {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
-  const [authors, setAuthors] = React.useState<Author[]>([])
   const [institutions, setInstitutions] = React.useState<Institution[]>([])
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false)
-  const [newAuthor, setNewAuthor] = React.useState<Partial<Author>>({})
+  const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
+  const [newInstitution, setNewInstitution] = React.useState<Partial<Institution>>({})
+  const [editingInstitution, setEditingInstitution] = React.useState<Institution | null>(null)
+
+  const { token, isAuthenticated, logout } = useAuth()
 
   React.useEffect(() => {
-    fetchAuthors()
-    fetchInstitutions()
-  }, [])
-
-  const fetchAuthors = async () => {
-    try {
-      const response = await fetch('http://localhost:5174/Author', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
-      if (!response.ok) throw new Error('Failed to fetch authors')
-      const data = await response.json()
-      setAuthors(data)
-    } catch (error) {
-      console.error('Error fetching authors:', error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch authors. Please try again.",
-        variant: "destructive",
-      })
+    if (isAuthenticated && token) {
+      fetchInstitutions()
     }
-  }
+  }, [isAuthenticated, token])
 
   const fetchInstitutions = async () => {
     try {
       const response = await fetch('http://localhost:5174/Institution', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       })
-      if (!response.ok) throw new Error('Failed to fetch institutions')
+      if (!response.ok) {
+        if (response.status === 401) {
+          logout()
+          throw new Error('Your session has expired. Please log in again.')
+        }
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to fetch institutions')
+      }
       const data = await response.json()
-      setInstitutions(data)
+      
+      const mappedInstitutions = Array.isArray(data) ? data.map((institution: any) => ({
+        id: institution.institution_id,
+        name: institution.name,
+        country: institution.country
+      })) : []
+      
+      setInstitutions(mappedInstitutions)
     } catch (error) {
       console.error('Error fetching institutions:', error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch institutions. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
-  const addAuthor = async () => {
+  const addInstitution = async () => {
     try {
-      const response = await fetch('http://localhost:5174/Author/add', {
+      const response = await fetch('http://localhost:5174/Institution/add', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(newAuthor),
+        body: JSON.stringify({
+          name: newInstitution.name,
+          country: newInstitution.country
+        }),
       })
-      if (!response.ok) throw new Error('Failed to add author')
-      setIsAddModalOpen(false)
-      setNewAuthor({})
-      fetchAuthors()
-      toast({
-        title: "Success",
-        description: "Author added successfully.",
-      })
+      if (!response.ok) {
+        if (response.status === 401) {
+          logout()
+          throw new Error('Your session has expired. Please log in again.')
+        }
+        throw new Error('Failed to add institution')
+      }
+      const result = await response.json()
+      if (result.errMsg === 'Institution created successfully') {
+        setIsAddModalOpen(false)
+        setNewInstitution({})
+        fetchInstitutions()
+        toast({
+          title: "Success",
+          description: "Institution added successfully.",
+        })
+      } else {
+        throw new Error(result.errMsg || 'Failed to add institution')
+      }
     } catch (error) {
-      console.error('Error adding author:', error)
+      console.error('Error adding institution:', error)
       toast({
         title: "Error",
-        description: "Failed to add author. Please try again.",
+        description: "Failed to add institution. Please try again.",
         variant: "destructive",
       })
     }
   }
 
-  const deleteAuthor = async (id: string) => {
+  const updateInstitution = async () => {
+    if (!editingInstitution) return
     try {
-      const response = await fetch(`http://localhost:5174/Author/${id}`, {
+      const response = await fetch(`http://localhost:5174/Institution/${editingInstitution.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(editingInstitution),
+      })
+      if (!response.ok) {
+        if (response.status === 401) {
+          logout()
+          throw new Error('Your session has expired. Please log in again.')
+        }
+        throw new Error('Failed to update institution')
+      }
+      setIsEditModalOpen(false)
+      setEditingInstitution(null)
+      fetchInstitutions()
+      toast({
+        title: "Success",
+        description: "Institution updated successfully.",
+      })
+    } catch (error) {
+      console.error('Error updating institution:', error)
+      toast({
+        title: "Error",
+        description: "Failed to update institution. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const deleteInstitution = async (id: number) => {
+    try {
+      const response = await fetch(`http://localhost:5174/Institution/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       })
-      if (!response.ok) throw new Error('Failed to delete author')
-      fetchAuthors()
+      if (!response.ok) {
+        if (response.status === 401) {
+          logout()
+          throw new Error('Your session has expired. Please log in again.')
+        }
+        throw new Error('Failed to delete institution')
+      }
+      fetchInstitutions()
       toast({
         title: "Success",
-        description: `Author deleted successfully.`,
+        description: "Institution deleted successfully.",
       })
     } catch (error) {
-      console.error('Error deleting author:', error)
+      console.error('Error deleting institution:', error)
       toast({
         title: "Error",
-        description: "Failed to delete author. Please try again.",
+        description: "Failed to delete institution. Please try again.",
         variant: "destructive",
       })
     }
   }
 
-  const columns: ColumnDef<Author>[] = [
+  const columns: ColumnDef<Institution>[] = [
     {
       id: "select",
       header: ({ table }) => (
@@ -203,64 +243,30 @@ export default function AuthorManagement() {
       enableHiding: false,
     },
     {
-      accessorKey: "firstName",
-      header: "First Name",
-      cell: ({ row }) => <div className="capitalize">{row.getValue("firstName")}</div>,
-    },
-    {
-      accessorKey: "lastName",
-      header: "Last Name",
-      cell: ({ row }) => <div className="capitalize">{row.getValue("lastName")}</div>,
-    },
-    {
-      accessorKey: "email",
+      accessorKey: "name",
       header: ({ column }) => {
         return (
           <Button
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
-            Email
+            Name
             <CaretSortIcon className="ml-2 h-4 w-4" />
           </Button>
         )
       },
-      cell: ({ row }) => <div>{row.getValue("email")}</div>,
+      cell: ({ row }) => <div className="capitalize">{row.getValue("name")}</div>,
     },
     {
-      accessorKey: "institutionName",
-      header: "Institution",
-      cell: ({ row }) => <div>{row.getValue("institutionName")}</div>,
-    },
-    {
-      accessorKey: "articles",
-      header: "Articles",
-      cell: ({ row }) => {
-        const articles = row.original.articles || []
-        return (
-          <div className="max-w-[200px] truncate">
-            {articles.length > 0 ? articles.map(a => a.title).join(", ") : "No articles"}
-          </div>
-        )
-      },
-    },
-    {
-      accessorKey: "awards",
-      header: "Awards",
-      cell: ({ row }) => {
-        const awards = row.original.awards || []
-        return (
-          <div className="max-w-[200px] truncate">
-            {awards.length > 0 ? awards.map(a => a.name).join(", ") : "No awards"}
-          </div>
-        )
-      },
+      accessorKey: "country",
+      header: "Country",
+      cell: ({ row }) => <div>{row.getValue("country")}</div>,
     },
     {
       id: "actions",
       enableHiding: false,
       cell: ({ row }) => {
-        const author = row.original
+        const institution = row.original
 
         return (
           <DropdownMenu>
@@ -272,15 +278,18 @@ export default function AuthorManagement() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => toast({ title: "Edit author", description: "Coming soon" })}>
-                Edit Author
+              <DropdownMenuItem onClick={() => {
+                setEditingInstitution(institution)
+                setIsEditModalOpen(true)
+              }}>
+                Edit Institution
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-red-600"
-                onClick={() => deleteAuthor(author.id)}
+                onClick={() => deleteInstitution(institution.id)}
               >
-                Delete Author
+                Delete Institution
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -290,7 +299,7 @@ export default function AuthorManagement() {
   ]
 
   const table = useReactTable({
-    data: authors,
+    data: institutions,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -312,10 +321,10 @@ export default function AuthorManagement() {
     <div className="w-full">
       <div className="flex items-center justify-between py-4">
         <Input
-          placeholder="Filter author..."
-          value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
+          placeholder="Filter institutions..."
+          value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
           onChange={(event) =>
-            table.getColumn("email")?.setFilterValue(event.target.value)
+            table.getColumn("name")?.setFilterValue(event.target.value)
           }
           className="max-w-sm"
         />
@@ -324,108 +333,42 @@ export default function AuthorManagement() {
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" className="ml-auto h-8">
                 <PlusCircledIcon className="mr-2 h-4 w-4" />
-                Add Author
+                Add Institution
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Add New Author</DialogTitle>
+                <DialogTitle>Add New Institution</DialogTitle>
                 <DialogDescription>
-                  Enter the details of the new author here. Click save when you're done.
+                  Enter the details of the new institution here. Click save when you're done.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="firstName" className="text-right">
-                    First Name
+                  <Label htmlFor="name" className="text-right">
+                    Name
                   </Label>
                   <Input
-                    id="firstName"
-                    value={newAuthor.FirstName || ''}
-                    onChange={(e) => setNewAuthor({...newAuthor, FirstName: e.target.value})}
+                    id="name"
+                    value={newInstitution.name || ''}
+                    onChange={(e) => setNewInstitution({...newInstitution, name: e.target.value})}
                     className="col-span-3"
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="lastName" className="text-right">
-                    Last Name
+                  <Label htmlFor="country" className="text-right">
+                    Country
                   </Label>
                   <Input
-                    id="lastName"
-                    value={newAuthor.LastName || ''}
-                    onChange={(e) => setNewAuthor({...newAuthor, LastName: e.target.value})}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="email" className="text-right">
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={newAuthor.Email || ''}
-                    onChange={(e) => setNewAuthor({...newAuthor, Email: e.target.value})}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="institution" className="text-right">
-                    Institution
-                  </Label>
-                  <Select
-                    value={newAuthor.InstitutionId?.toString()}
-                    onValueChange={(value) => setNewAuthor({...newAuthor, InstitutionId: parseInt(value)})}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select an institution" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {institutions.map((institution) => (
-                        <SelectItem key={institution.id} value={institution.id.toString()}>
-                          {institution.name} ({institution.country})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="address" className="text-right">
-                    Address
-                  </Label>
-                  <Input
-                    id="address"
-                    value={newAuthor.Address || ''}
-                    onChange={(e) => setNewAuthor({...newAuthor, Address: e.target.value})}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="bio" className="text-right">
-                    Bio
-                  </Label>
-                  <Input
-                    id="bio"
-                    value={newAuthor.bio || ''}
-                    onChange={(e) => setNewAuthor({...newAuthor, bio: e.target.value})}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="dateOfBirth" className="text-right">
-                    Date of Birth
-                  </Label>
-                  <Input
-                    id="dateOfBirth"
-                    type="date"
-                    value={newAuthor.dateOfbirth || ''}
-                    onChange={(e) => setNewAuthor({...newAuthor, dateOfbirth: e.target.value})}
+                    id="country"
+                    value={newInstitution.country || ''}
+                    onChange={(e) => setNewInstitution({...newInstitution, country: e.target.value})}
                     className="col-span-3"
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit" onClick={addAuthor}>Save changes</Button>
+                <Button type="submit" onClick={addInstitution}>Save changes</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -531,6 +474,43 @@ export default function AuthorManagement() {
           </Button>
         </div>
       </div>
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Institution</DialogTitle>
+            <DialogDescription>
+              Make changes to the institution here. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-name" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="edit-name"
+                value={editingInstitution?.name || ''}
+                onChange={(e) => setEditingInstitution(prev => prev ? {...prev, name: e.target.value} : null)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-country" className="text-right">
+                Country
+              </Label>
+              <Input
+                id="edit-country"
+                value={editingInstitution?.country || ''}
+                onChange={(e) => setEditingInstitution(prev => prev ? {...prev, country: e.target.value} : null)}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="submit" onClick={updateInstitution}>Save changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

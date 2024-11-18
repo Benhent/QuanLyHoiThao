@@ -8,6 +8,8 @@ import RootLayout from './_root/RootLayout'
 import Home from './_root/Route/Home'
 import AuthorManament from './_root/Route/AuthorManament'
 import WorkManament from './_root/Route/WorkManament'
+import InstitutionManament from './_root/Route/institutionsManament'
+import AwardManament from './_root/Route/AwardManament'
 
 function App() {
 
@@ -24,8 +26,10 @@ function App() {
         {/* private route */}
         <Route element={<RootLayout />}>
           <Route index element={<Home />} />
-          <Route path='/author' element={<AuthorManament />} />
-          <Route path='/work' element={<WorkManament />} />
+          <Route path='/Author' element={<AuthorManament />} />
+          <Route path='/Work' element={<WorkManament />} />
+          <Route path='/Institution' element={<InstitutionManament />} />
+          <Route path='/Award' element={<AwardManament />} />
         </Route>
       </Routes>
     </main>
