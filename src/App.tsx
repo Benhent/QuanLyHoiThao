@@ -7,7 +7,7 @@ import SignUpForm from './_auth/form/SignUpForm'
 import RootLayout from './_root/RootLayout'
 import Home from './_root/Route/Home'
 import AuthorManament from './_root/Route/AuthorManament'
-import WorkManament from './_root/Route/WorkManament'
+import ArticleManament from './_root/Route/ArticleManament'
 import InstitutionManament from './_root/Route/institutionsManament'
 import AwardManament from './_root/Route/AwardManament'
 
@@ -27,7 +27,7 @@ function App() {
         <Route element={<RootLayout />}>
           <Route index element={<Home />} />
           <Route path='/Author' element={<AuthorManament />} />
-          <Route path='/Work' element={<WorkManament />} />
+          <Route path='/Article' element={<ArticleManament />} />
           <Route path='/Institution' element={<InstitutionManament />} />
           <Route path='/Award' element={<AwardManament />} />
         </Route>
