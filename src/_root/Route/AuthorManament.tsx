@@ -1,3 +1,5 @@
+'use client'
+
 import * as React from "react"
 import {
   CaretSortIcon,
@@ -58,6 +60,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { useAuth } from '../../Context/AuthProviderContext'
 
 interface Author {
@@ -68,20 +78,15 @@ interface Author {
   address: string | null
   bio: string
   dateOfbirth: string
-  institution_name: any
-  institution?: {
-    name: string;
-    country: string;
-  };
-  articles?: Array<{
-    article_id: number;
-    title: string;
-  }>;
-  awards?: Array<{
-    award_id: number;
-    name: string;
-    date_received: string;
-  }>;
+  institution_id: number | null
+  institution_name: string
+  articles: string
+  awards: string
+}
+
+interface Institution {
+  institution_id: number
+  name: string
 }
 
 export default function AuthorManagement() {
@@ -90,8 +95,10 @@ export default function AuthorManagement() {
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
   const [authors, setAuthors] = React.useState<Author[]>([])
+  const [institutions, setInstitutions] = React.useState<Institution[]>([])
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = React.useState(false)
   const [newAuthor, setNewAuthor] = React.useState<Partial<Author>>({})
   const [editingAuthor, setEditingAuthor] = React.useState<Author | null>(null)
   const [date, setDate] = React.useState<Date>()
@@ -125,12 +132,45 @@ export default function AuthorManagement() {
     }
   }
 
+  const fetchInstitutions = async () => {
+    try {
+      const response = await fetch('http://localhost:5174/Institution', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      if (!response.ok) {
+        throw new Error('Failed to fetch institutions')
+      }
+      const data = await response.json()
+      setInstitutions(data)
+    } catch (error) {
+      console.error('Error fetching institutions:', error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch institutions. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
   React.useEffect(() => {
     if (isAuthenticated && token) {
       fetchAuthors()
+      fetchInstitutions()
     }
   }, [isAuthenticated, token])
 
+  const validateAuthor = (author: Partial<Author>): string[] => {
+    const errors: string[] = []
+    if (!author.first_name) errors.push("First name is required")
+    if (!author.last_name) errors.push("Last name is required")
+    if (!author.email) errors.push("Email is required")
+    else if (!/\S+@\S+\.\S+/.test(author.email)) errors.push("Email is invalid")
+    if (!date) errors.push("Date of birth is required")
+    return errors
+  }
   const addAuthor = async () => {
     try {
       const response = await fetch('http://localhost:5174/Author/add', {
@@ -145,6 +185,8 @@ export default function AuthorManagement() {
         }),
       })
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server response:', errorText);
         throw new Error('Failed to add author')
       }
       setIsAddModalOpen(false)
@@ -167,6 +209,21 @@ export default function AuthorManagement() {
 
   const updateAuthor = async () => {
     if (!editingAuthor) return
+
+    const errors = validateAuthor(editingAuthor)
+    if (errors.length > 0) {
+      toast({
+        title: "Validation Error",
+        description: errors.join(". "),
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsConfirmDialogOpen(true)
+  }
+  const confirmUpdate = async () => {
+    if (!editingAuthor) return
     try {
       const response = await fetch(`http://localhost:5174/Author/${editingAuthor.author_id}`, {
         method: 'PUT',
@@ -180,9 +237,11 @@ export default function AuthorManagement() {
         }),
       })
       if (!response.ok) {
-        throw new Error('Failed to update author')
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to update author')
       }
       setIsEditModalOpen(false)
+      setIsConfirmDialogOpen(false)
       setEditingAuthor(null)
       setDate(undefined)
       fetchAuthors()
@@ -480,6 +539,26 @@ export default function AuthorManagement() {
                     </PopoverContent>
                   </Popover>
                 </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="institution" className="text-right">
+                    Institution
+                  </Label>
+                  <Select
+                    value={newAuthor.institution_id?.toString()}
+                    onValueChange={(value) => setNewAuthor({...newAuthor, institution_id: parseInt(value)})}
+                  >
+                    <SelectTrigger id="institution" className="col-span-3">
+                      <SelectValue placeholder="Select an institution" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {institutions.map((institution) => (
+                        <SelectItem key={institution.institution_id} value={institution.institution_id.toString()}>
+                          {institution.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <DialogFooter>
                 <Button type="submit" onClick={addAuthor}>Save changes</Button>
@@ -681,12 +760,47 @@ export default function AuthorManagement() {
                 </PopoverContent>
               </Popover>
             </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-institution" className="text-right">
+                Institution
+              </Label>
+              <Select
+                onValueChange={(value) => setEditingAuthor(prev => prev ? {...prev, institution_id: parseInt(value)} : null)}
+                defaultValue={editingAuthor?.institution_id?.toString()}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select an institution" />
+                </SelectTrigger>
+                <SelectContent>
+                  {institutions.map((institution) => (
+                    <SelectItem key={institution.institution_id} value={institution.institution_id.toString()}>
+                      {institution.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button type="submit" onClick={updateAuthor}>Save changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action will update the author's information. Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmUpdate}>Continue</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
