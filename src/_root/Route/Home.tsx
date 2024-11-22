@@ -1,3 +1,5 @@
+"use client"
+
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, BookOpen, Award, Building2 } from 'lucide-react'
@@ -6,8 +8,18 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 interface DashboardData {
-  authors: any[]
-  articles: any[]
+  authors: Array<{
+    author_id: number
+    first_name: string
+    last_name: string
+    articles: string | null
+  }>
+  articles: Array<{
+    article_id: number
+    title: string
+    authors: string
+    publication_date: string
+  }>
   awards: any[]
   institutions: any[]
 }
@@ -73,9 +85,12 @@ export default function EnhancedDashboard() {
   const getTopAuthors = () => {
     const authorArticleCounts = data.authors.map(author => ({
       name: `${author.first_name} ${author.last_name}`,
-      articles: data.articles.filter(article => article.author_id === author.author_id).length
+      articles: author.articles ? author.articles.split(',').length : 0
     }))
-    return authorArticleCounts.sort((a, b) => b.articles - a.articles).slice(0, 5)
+    return authorArticleCounts
+      .filter(author => author.articles > 0)
+      .sort((a, b) => b.articles - a.articles)
+      .slice(0, 5)
   }
 
   const getRecentArticles = () => {
@@ -149,7 +164,7 @@ export default function EnhancedDashboard() {
               {getRecentArticles().map((article) => (
                 <TableRow key={article.article_id}>
                   <TableCell>{article.title}</TableCell>
-                  <TableCell>{article.author_name}</TableCell>
+                  <TableCell>{article.authors}</TableCell>
                   <TableCell>{new Date(article.publication_date).toLocaleDateString()}</TableCell>
                 </TableRow>
               ))}
@@ -160,3 +175,4 @@ export default function EnhancedDashboard() {
     </div>
   )
 }
+

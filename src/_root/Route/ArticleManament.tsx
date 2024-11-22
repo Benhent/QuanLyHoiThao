@@ -66,6 +66,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { useToast } from "../../hooks/use-toast"
 import { useAuth } from "../../Context/AuthProviderContext"
+import CategoryManagement from "./CategoryManament"
 
 interface Author {
   author_id: number
@@ -415,6 +416,7 @@ export default function ArticleManagement() {
 
   return (
     <div className="w-full">
+      <CategoryManagement/>
       <div className="flex items-center justify-between py-4">
         <Input
           placeholder="Filter articles..."

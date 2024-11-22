@@ -1,7 +1,6 @@
 import * as React from "react"
 import {
   CaretSortIcon,
-  ChevronDownIcon,
   DotsHorizontalIcon,
   PlusCircledIcon,
 } from "@radix-ui/react-icons"
@@ -21,7 +20,6 @@ import {
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -271,8 +269,8 @@ export default function CategoryManagement() {
   })
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
-      <div className="flex items-center justify-between py-4">
+    <div className="w-full max-w-sm mx-auto sm:ml-0">
+      <div className="flex flex-col space-y-4 py-4">
         <Input
           placeholder="Filter categories..."
           value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
@@ -283,7 +281,7 @@ export default function CategoryManagement() {
         />
         <Dialog open={isAddCategoryModalOpen} onOpenChange={setIsAddCategoryModalOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="w-full sm:w-auto">
               <PlusCircledIcon className="mr-2 h-4 w-4" />
               Add Category
             </Button>
@@ -365,28 +363,22 @@ export default function CategoryManagement() {
         </Table>
       </div>
       <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="flex-1 text-sm text-muted-foreground">
-          {/* {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s) selected. */}
-        </div>
-        <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => table.previousPage()}
+          disabled={!table.getCanPreviousPage()}
+        >
+          Previous
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => table.nextPage()}
+          disabled={!table.getCanNextPage()}
+        >
+          Next
+        </Button>
       </div>
 
       {/* Edit Category Modal */}
