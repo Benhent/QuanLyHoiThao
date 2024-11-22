@@ -6,6 +6,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../Context/AuthProviderContext'
 import { useState } from "react"
 import { Home, User, LogOut, Menu, Building2, Award, Newspaper } from "lucide-react"
+import SaviourLogo from "@/asset/Saviour.svg";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   isDesktop?: boolean
@@ -26,7 +27,8 @@ export function AppSideBar({ className, isDesktop = false }: SidebarProps) {
 
   const SidebarContent = (
     <ScrollArea className="h-full py-6 pl-6 pr-6">
-      <h2 className="mb-4 text-lg font-semibold">Navigation</h2>
+      {/* <h2 className="mb-4 text-lg font-semibold">Navigation</h2> */}
+      <img src={SaviourLogo} alt="Logo" className="mb-4" />
       <div className="space-y-1">
         {routes.map((route) => (
           <Button

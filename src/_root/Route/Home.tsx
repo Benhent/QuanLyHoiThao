@@ -1,317 +1,162 @@
-import * as React from "react"
-import {
-  ColumnDef,
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table"
-import { CaretSortIcon, ChevronDownIcon } from "@radix-ui/react-icons"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { useEffect, useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Users, BookOpen, Award, Building2 } from 'lucide-react'
 import { useAuth } from '../../Context/AuthProviderContext'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
-// Types that match the database schema
-interface Author {
-  institution_name: any
-  author_id: number;
-  first_name: string;
-  last_name: string;
-  email: string;
-  address: string | null;
-  bio: string;
-  dateOfBirth: string;
-  institution?: {
-    name: string;
-    country: string;
-  };
-  articles?: Array<{
-    article_id: number;
-    title: string;
-  }>;
-  awards?: Array<{
-    award_id: number;
-    name: string;
-    date_received: string;
-  }>;
+interface DashboardData {
+  authors: any[]
+  articles: any[]
+  awards: any[]
+  institutions: any[]
 }
 
-export default function Home() {
-  const { token, isAuthenticated, logout } = useAuth()
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
-  const [rowSelection, setRowSelection] = React.useState({})
-  const [authors, setAuthors] = React.useState<Author[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+export default function EnhancedDashboard() {
+  const [data, setData] = useState<DashboardData>({
+    authors: [],
+    articles: [],
+    awards: [],
+    institutions: []
+  })
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const { token } = useAuth()
 
-  // Fetch authors with related data
-  const fetchAuthors = React.useCallback(async () => {
-    if (!isAuthenticated || !token) {
-      setError("Not authenticated")
-      setIsLoading(false)
-      return
-    }
-
-    try {
-      const response = await fetch('http://localhost:5174/Author', {
-        headers: {
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const headers = {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
-      })
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          logout()
-          throw new Error('Your session has expired. Please log in again.')
+        const [authorsRes, articlesRes, awardsRes, institutionsRes] = await Promise.all([
+          fetch('http://localhost:5174/Author', { headers }),
+          fetch('http://localhost:5174/Article', { headers }),
+          fetch('http://localhost:5174/Award', { headers }),
+          fetch('http://localhost:5174/Institution', { headers })
+        ])
+
+        if (!authorsRes.ok || !articlesRes.ok || !awardsRes.ok || !institutionsRes.ok) {
+          throw new Error('Failed to fetch data')
         }
-        throw new Error('Failed to fetch authors')
+
+        const [authors, articles, awards, institutions] = await Promise.all([
+          authorsRes.json(),
+          articlesRes.json(),
+          awardsRes.json(),
+          institutionsRes.json()
+        ])
+
+        setData({ authors, articles, awards, institutions })
+      } catch (error) {
+        setError('An error occurred while fetching data')
+        console.error('Error fetching data:', error)
+      } finally {
+        setIsLoading(false)
       }
-
-      const data = await response.json()
-      console.log('Received authors data:', data)
-      setAuthors(data)
-      setError(null)
-    } catch (error) {
-      console.error('Error fetching authors:', error)
-      setError(error instanceof Error ? error.message : 'An unknown error occurred')
-    } finally {
-      setIsLoading(false)
     }
-  }, [token, isAuthenticated, logout])
 
-  React.useEffect(() => {
-    fetchAuthors()
-  }, [fetchAuthors])
+    fetchData()
+  }, [token])
 
-  const columns: ColumnDef<Author>[] = [
-    {
-      accessorKey: "first_name",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            First Name
-            <CaretSortIcon className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
-      cell: ({ row }) => <div className="capitalize">{row.getValue("first_name")}</div>,
-    },
-    {
-      accessorKey: "last_name",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            Last Name
-            <CaretSortIcon className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
-      cell: ({ row }) => <div className="capitalize">{row.getValue("last_name")}</div>,
-    },
-    {
-      accessorKey: "email",
-      header: "Email",
-      cell: ({ row }) => <div>{row.getValue("email")}</div>,
-    },
-    {
-      accessorKey: "institution_name",
-      header: "Institution",
-      cell: ({ row }) => {
-        const institutionName = row.original.institution_name;
-        return <div>{institutionName || 'N/A'}</div>; 
-      },
-    },
-    {
-      accessorKey: "articles",
-      header: "Articles",
-      cell: ({ row }) => {
-        const articles = row.original.articles
-        if (typeof articles === 'string') {
-          return <div>{articles}</div>;
-        }
-    
-        return <div>No articles</div>;
-      },
-    },
-    {
-      accessorKey: "awards",
-      header: "Awards",
-      cell: ({ row }) => {
-        const awards = row.original.awards;
-
-        if (typeof awards === 'string') {
-          return <div>{awards}</div>;
-        }
-    
-        return <div>No awards</div>;
-      },
-    },
+  const stats = [
+    { title: 'Authors', value: data.authors.length, icon: Users, color: 'text-blue-600' },
+    { title: 'Articles', value: data.articles.length, icon: BookOpen, color: 'text-green-600' },
+    { title: 'Awards', value: data.awards.length, icon: Award, color: 'text-yellow-600' },
+    { title: 'Institutions', value: data.institutions.length, icon: Building2, color: 'text-purple-600' },
   ]
 
-  const table = useReactTable({
-    data: authors,
-    columns,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
-    state: {
-      sorting,
-      columnFilters,
-      columnVisibility,
-      rowSelection,
-    },
-  })
+  const getTopAuthors = () => {
+    const authorArticleCounts = data.authors.map(author => ({
+      name: `${author.first_name} ${author.last_name}`,
+      articles: data.articles.filter(article => article.author_id === author.author_id).length
+    }))
+    return authorArticleCounts.sort((a, b) => b.articles - a.articles).slice(0, 5)
+  }
+
+  const getRecentArticles = () => {
+    return data.articles
+      .sort((a, b) => new Date(b.publication_date).getTime() - new Date(a.publication_date).getTime())
+      .slice(0, 5)
+  }
 
   if (isLoading) {
-    return <div className="flex items-center justify-center p-4">Loading authors...</div>
+    return <div className="flex justify-center items-center h-screen">Loading...</div>
   }
 
   if (error) {
-    return <div className="flex items-center justify-center p-4 text-red-500">Error: {error}</div>
+    return <div className="flex justify-center items-center h-screen text-red-500">{error}</div>
   }
 
   return (
-    <div className="w-full">
-      <div className="flex items-center justify-between py-4">
-        <Input
-          placeholder="Filter by email..."
-          value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("email")?.setFilterValue(event.target.value)
-          }
-          className="max-w-sm"
-        />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
-              Columns <ChevronDownIcon className="ml-2 h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => {
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    className="capitalize"
-                    checked={column.getIsVisible()}
-                    onCheckedChange={(value) =>
-                      column.toggleVisibility(!!value)
-                    }
-                  >
-                    {column.id}
-                  </DropdownMenuCheckboxItem>
-                )
-              })}
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <div className="container mx-auto p-4">
+      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
+      
+      {/* Summary Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {stats.map((stat) => (
+          <Card key={stat.title}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+              <stat.icon className={`h-4 w-4 ${stat.color}`} />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stat.value}</div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  )
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
+
+      {/* Top Authors Chart */}
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Top Authors by Articles</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={getTopAuthors()}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="articles" fill="#8884d8" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Recent Articles Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Articles</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No results.
-                </TableCell>
+                <TableHead>Title</TableHead>
+                <TableHead>Author</TableHead>
+                <TableHead>Publication Date</TableHead>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
-        </div>
-        <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
-        </div>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {getRecentArticles().map((article) => (
+                <TableRow key={article.article_id}>
+                  <TableCell>{article.title}</TableCell>
+                  <TableCell>{article.author_name}</TableCell>
+                  <TableCell>{new Date(article.publication_date).toLocaleDateString()}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   )
 }
