@@ -48,7 +48,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { useAuth } from '../../Context/AuthProviderContext' // Update this import path
+import { useAuth } from '../../Context/AuthProviderContext'
 
 export type Institution = {
   id: number

@@ -6,7 +6,7 @@ import {
   PlusCircledIcon,
 } from "@radix-ui/react-icons"
 import { CalendarIcon } from 'lucide-react'
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -53,7 +53,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { toast } from "@/hooks/use-toast"
+import { toast } from "../../hooks/use-toast"
 import {
   Dialog,
   DialogContent,
@@ -68,7 +68,7 @@ import { useAuth } from '../../Context/AuthProviderContext'
 
 interface Author {
   author_id: number
-  name: string
+  full_name: string
 }
 
 interface Award {
@@ -91,7 +91,7 @@ export default function AwardsManagement() {
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
   const [newAward, setNewAward] = React.useState<Partial<Award>>({})
   const [editingAward, setEditingAward] = React.useState<Award | null>(null)
-  const [date, setDate] = React.useState<Date>()
+  const [date, setDate] = React.useState<Date | undefined>(undefined)
 
   const { token, isAuthenticated, logout } = useAuth()
 
@@ -104,7 +104,7 @@ export default function AwardsManagement() {
 
   const fetchAuthors = async () => {
     try {
-      const response = await fetch('http://localhost:5174/Author', {
+      const response = await fetch('http://localhost:5174/Author/GetFullName', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -178,8 +178,8 @@ export default function AwardsManagement() {
         body: JSON.stringify({
           name: newAward.name,
           description: newAward.description,
-          date_received: date?.toISOString(),
-          author_id: newAward.author_id
+          date_received: date ? date.toISOString() : null,
+          author_id: newAward.author_id || null
         }),
       })
       if (!response.ok) {
@@ -190,7 +190,7 @@ export default function AwardsManagement() {
         throw new Error('Failed to add award')
       }
       const result = await response.json()
-      if (result.errMsg === 'Award created successfully') {
+      if (result.message === 'Award created successfully') {
         setIsAddModalOpen(false)
         setNewAward({})
         setDate(undefined)
@@ -200,7 +200,7 @@ export default function AwardsManagement() {
           description: "Award added successfully.",
         })
       } else {
-        throw new Error(result.errMsg || 'Failed to add award')
+        throw new Error(result.message || 'Failed to add award')
       }
     } catch (error) {
       console.error('Error adding award:', error)
@@ -223,7 +223,8 @@ export default function AwardsManagement() {
         },
         body: JSON.stringify({
           ...editingAward,
-          date_received: date?.toISOString()
+          date_received: date ? date.toISOString() : null,
+          author_id: editingAward.author_id || null
         }),
       })
       if (!response.ok) {
@@ -329,7 +330,10 @@ export default function AwardsManagement() {
     {
       accessorKey: "date_received",
       header: "Date Received",
-      cell: ({ row }) => <div>{format(new Date(row.getValue("date_received")), 'PP')}</div>,
+      cell: ({ row }) => {
+        const date = row.getValue("date_received")
+        return <div>{date ? format(parseISO(date as string), 'PP') : 'N/A'}</div>
+      },
     },
     {
       accessorKey: "author_name",
@@ -354,7 +358,7 @@ export default function AwardsManagement() {
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => {
                 setEditingAward(award)
-                setDate(new Date(award.date_received))
+                setDate(award.date_received ? parseISO(award.date_received) : undefined)
                 setIsEditModalOpen(true)
               }}>
                 Edit Award
@@ -448,6 +452,7 @@ export default function AwardsManagement() {
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
+                        id="date"
                         variant={"outline"}
                         className={cn(
                           "col-span-3 justify-start text-left font-normal",
@@ -458,7 +463,7 @@ export default function AwardsManagement() {
                         {date ? format(date, "PPP") : <span>Pick a date</span>}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
+                    <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
                         selected={date}
@@ -476,13 +481,13 @@ export default function AwardsManagement() {
                     value={newAward.author_id?.toString()}
                     onValueChange={(value) => setNewAward({...newAward, author_id: parseInt(value)})}
                   >
-                    <SelectTrigger className="col-span-3">
+                    <SelectTrigger id="author" className="col-span-3">
                       <SelectValue placeholder="Select an author" />
                     </SelectTrigger>
                     <SelectContent>
                       {authors.map((author) => (
                         <SelectItem key={author.author_id} value={author.author_id.toString()}>
-                          {author.name}
+                          {author.full_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -628,12 +633,13 @@ export default function AwardsManagement() {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="date" className="text-right">
+              <Label htmlFor="edit-date" className="text-right">
                 Date Received
               </Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
+                    id="edit-date"
                     variant={"outline"}
                     className={cn(
                       "col-span-3 justify-start text-left font-normal",
@@ -644,7 +650,7 @@ export default function AwardsManagement() {
                     {date ? format(date, "PPP") : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={date}
@@ -655,20 +661,20 @@ export default function AwardsManagement() {
               </Popover>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="author" className="text-right">
+              <Label htmlFor="edit-author" className="text-right">
                 Author
               </Label>
               <Select
                 value={editingAward?.author_id?.toString()}
                 onValueChange={(value) => setEditingAward(prev => prev ? {...prev, author_id: parseInt(value)} : null)}
               >
-                <SelectTrigger className="col-span-3">
+                <SelectTrigger id="edit-author" className="col-span-3">
                   <SelectValue placeholder="Select an author" />
                 </SelectTrigger>
                 <SelectContent>
                   {authors.map((author) => (
                     <SelectItem key={author.author_id} value={author.author_id.toString()}>
-                      {author.name}
+                      {author.full_name}
                     </SelectItem>
                   ))}
                 </SelectContent>

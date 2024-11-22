@@ -1,5 +1,3 @@
-'use client'
-
 import * as React from "react"
 import {
   ColumnDef,
@@ -92,7 +90,7 @@ export default function Home() {
       }
 
       const data = await response.json()
-      console.log('Received authors data:', data) // Debug log
+      console.log('Received authors data:', data)
       setAuthors(data)
       setError(null)
     } catch (error) {
